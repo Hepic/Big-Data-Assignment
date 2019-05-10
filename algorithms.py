@@ -18,7 +18,6 @@ def union_par(parents, ranks, ind1, ind2):
 
 
 def slow_algorithm(data):
-    all_mac = len(set(data.MAC))
     mac_info, parents, ranks, families = dict(), dict(), dict(), dict()
     
     for ind, row in data.iterrows():
@@ -39,7 +38,7 @@ def slow_algorithm(data):
             
             dist = distances.jaccard_distance(value1, value2)
 
-            if dist <= 0.9:
+            if dist <= 0.87:
                 par1, par2 = find_par(parents, key1), find_par(parents, key2)
 
                 if par1 != par2:
@@ -53,4 +52,4 @@ def slow_algorithm(data):
         else:
             families[par].append(key)
         
-    print families
+    return families
