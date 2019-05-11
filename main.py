@@ -19,20 +19,31 @@ def accuracy_evaluation(data, dataSol):
                 trueLabels[pos] = famInd
         
         famInd += 1
-
+    
+    predFamiliesList = [[] for i in range(len(macs))]
     predFamilies = algorithms.slow_algorithm(data)
     famInd = 0
 
     for key, value in predFamilies.iteritems():
         for macNum in value:
             pos = le.transform([macNum])[0]
-            predLabels[pos] = famInd
+
+            if len(value) >= 3:
+                predLabels[pos] = famInd
+                predFamiliesList[famInd].append(macNum)
 
         famInd += 1
 
-    print trueLabels
-    print predLabels
     print adjusted_rand_score(trueLabels, predLabels)
+   
+    print trueLabels
+    print
+    print predLabels
+
+    dataPred = pandas.DataFrame(predFamiliesList)
+    dataPred = dataPred.fillna(-1)
+    dataPred = dataPred.astype(int)
+    dataPred.to_csv('datasets/solution_1a.csv', index=False, header=None)
 
 
 def main():
@@ -40,7 +51,7 @@ def main():
     data = data.sort_values(by=['Day', 'Hour'])
     dataSol = pandas.read_csv('datasets/solution_1a_example.csv', header=None, names=[])
     
-    accuracy_evaluation(data, dataSol) 
+    accuracy_evaluation(data, dataSol)
 
 
 if __name__ == '__main__':
