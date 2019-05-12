@@ -1,57 +1,38 @@
-import pandas, math, algorithms
-from sklearn.metrics.cluster import adjusted_rand_score
-from sklearn import preprocessing
+import pandas
+from help_functions import *
+from algorithms import *
 
 
-def accuracy_evaluation(data, dataSol):
-    macs = list(set(data.MAC))
-    le = preprocessing.LabelEncoder()
-    le.fit(macs)
-    
-    trueLabels, predLabels = [-1 for i in range(len(macs))], [-1 for i in range(len(macs))]
-    famInd = 0
-    
-    for key, value in dataSol.iterrows():
-        for macNum in key:
-            if not math.isnan(macNum):
-                macNum = int(macNum)
-                pos = le.transform([macNum])[0]
-                trueLabels[pos] = famInd
-        
-        famInd += 1
-    
-    predFamiliesList = [[] for i in range(len(macs))]
-    predFamilies = algorithms.slow_algorithm(data)
-    famInd = 0
+def main():
+    data = pandas.read_csv('datasets/recordings_example.csv', header=0, names=['Day', 'Hour', 'IP', 'MAC'])
+    dataSol = pandas.read_csv('datasets/solution_1a_example.csv', header=None, sep='|')[0]
 
-    for key, value in predFamilies.iteritems():
-        for macNum in value:
-            pos = le.transform([macNum])[0]
+    # data = data.sort_values(by=['Day', 'Hour'])
+    # print data[(data.MAC == 712) | (data.MAC == 598) | (data.MAC == 380)].to_string()
 
-            if len(value) >= 3:
-                predLabels[pos] = famInd
-                predFamiliesList[famInd].append(macNum)
+    predFamilies = slow_algorithm(data)
+    accuracy_evaluation(data, dataSol, predFamilies)
 
-        famInd += 1
-
-    print adjusted_rand_score(trueLabels, predLabels)
-   
-    print trueLabels
-    print
-    print predLabels
+    predFamiliesList = [value for key, value in predFamilies.iteritems()]
 
     dataPred = pandas.DataFrame(predFamiliesList)
     dataPred = dataPred.fillna(-1)
     dataPred = dataPred.astype(int)
     dataPred.to_csv('datasets/solution_1a.csv', index=False, header=None)
 
+    ################################
+    trueL, predL = [sorted(map(int, mac_str.split(','))) for mac_str in dataSol], [sorted(value) for key, value in predFamilies.iteritems()]
+    print
 
-def main():
-    data = pandas.read_csv('datasets/recordings_example.csv', header=0, names=['Day', 'Hour', 'IP', 'MAC'])
-    data = data.sort_values(by=['Day', 'Hour'])
-    dataSol = pandas.read_csv('datasets/solution_1a_example.csv', header=None, names=[])
-    
-    accuracy_evaluation(data, dataSol)
+    for elem in trueL:
+        if elem not in predL:
+            print elem
+
+    print '----------------------------------------'
+
+    for elem in predL:
+        if elem not in trueL:
+            print elem
 
 
 if __name__ == '__main__':
