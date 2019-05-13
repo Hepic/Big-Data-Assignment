@@ -1,4 +1,4 @@
-import distances
+import distances, time
 
 
 def find_par(parents, ind):
@@ -17,27 +17,53 @@ def union_par(parents, ranks, ind1, ind2):
         ranks[ind2] += ranks[ind1]
 
 
+def minhash(set_info):
+    PRIME, MOD, K = 31, 1000000007, 300
+    list_info_hash = list()
+
+    for (day, hour, ip) in set_info:
+        hash_val = ((day * PRIME + hour * PRIME * PRIME + ip * PRIME) % MOD * PRIME) % MOD
+        list_info_hash.append((hash_val, (day, hour, ip)))
+
+    list_info_hash.sort()
+    set_info.clear()
+
+    for i in range(min(K, len(list_info_hash))):
+        info = list_info_hash[i][1]
+        set_info.add(info)
+
+
 def slow_algorithm(data):
     mac_info, parents, ranks, families = dict(), dict(), dict(), dict()
+    start = time.time()
 
     # retrieve mac addresses information
-    for ind, row in data.iterrows():
-        mac = int(row['MAC'])
-        info = (row['Day'], row['Hour'], row['IP'])
+    def read_data(row):
+        mac, info = row['MAC'], (row['Day'], row['Hour'], row['IP'])
 
         if row['Day'] % 7 >= 1 and row['Day'] % 7 <= 5 and row['Hour'] >= 7 and row['Hour'] <= 16:
-            continue
+            return
 
         if mac not in mac_info:
-            mac_info[mac] = []
+            mac_info[mac] = set()
             parents[mac] = mac
             ranks[mac] = 0
 
-        mac_info[mac].append(info)
+        mac_info[mac].add(info)
 
         for i in range(-2, 3, 1):
             info = (row['Day'], (row['Hour'] + i + 24) % 24, row['IP'])
-            mac_info[mac].append(info)
+            mac_info[mac].add(info),
+
+    data.apply(read_data, axis=1)
+
+    end = time.time()
+    print end - start
+
+    for key, value in mac_info.iteritems():
+        minhash(mac_info[key])
+
+    start = time.time()
 
     # union find on closests mac addresses with jaccard distance
     for key1, value1 in mac_info.iteritems():
@@ -52,6 +78,9 @@ def slow_algorithm(data):
 
                 if par1 != par2:
                     union_par(parents, ranks, par1, par2)
+
+    end = time.time()
+    print end - start
 
     for key, value in parents.iteritems():
         par = find_par(parents, key)
