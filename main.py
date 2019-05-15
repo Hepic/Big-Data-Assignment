@@ -10,7 +10,8 @@ def main():
     # data = data.sort_values(by=['Day', 'Hour'])
     # print data[(data.MAC == 712) | (data.MAC == 598) | (data.MAC == 380)].to_string()
 
-    predFamilies = slow_algorithm(data)
+    #predFamilies = slow_algorithm(data)
+    predFamilies = LSH(data)
     accuracy_evaluation(data, dataSol, predFamilies)
 
     predFamiliesList = [value for key, value in predFamilies.iteritems()]
