@@ -18,32 +18,35 @@ def union_par(parents, ranks, ind1, ind2):
 
 
 def minhash(set_info):
-    PRIME, MOD, K = 31, 1000000007, 800
-    list_info_hash = []
-
-    for (day, hour, ip) in set_info:
-        hash_val = ((day * PRIME + hour * PRIME * PRIME + ip * PRIME) % MOD * PRIME) % MOD
-        list_info_hash.append((hash_val, (day, hour, ip)))
-
-    list_info_hash.sort()
+    NUMBERS, MOD, K = [101, 6151, 12289, 49157, 393241, 786433, 1572869, 25165843, 100663319, 201326611], 1000000007, 50
     list_info = [] 
 
-    for i in range(min(K, len(list_info_hash))):
-        info = list_info_hash[i][1]
-        list_info.append(info)
+    for NUM in NUMBERS:
+        list_info_hash = []
+
+        for (day, hour, ip) in set_info:
+            hash_val = ((day * NUM) % MOD + ((hour * NUM) % MOD * NUM) % MOD + (((ip * NUM) % MOD * NUM) % MOD * NUM) % MOD) % MOD
+            list_info_hash.append((hash_val, (day, hour, ip)))
+
+        list_info_hash.sort()
+
+        for i in range(min(K / len(NUMBERS), len(list_info_hash))):
+            info = list_info_hash[i][1]
+            list_info.append(info)
     
     return list_info
 
 
 def LSH(data):
-    LSH_B, LSH_R = 800, 1
-    mac_info, parents, ranks, families, hashtables_lsh = dict(), dict(), dict(), dict(), [dict() for i in range(LSH_B + 5)]
+    LSH_B, LSH_R = 50, 1
+    mac_info, minhash_info, parents, ranks, families, hashtables_lsh = dict(), dict(), dict(), dict(), dict(), [dict() for i in range(LSH_B + 5)]
     start = time.time()
 
     # retrieve mac addresses information
     def read_data(row):
         mac, info = row['MAC'], (row['Day'], row['Hour'], row['IP'])
-
+        
+        # do not include working hours
         if row['Day'] % 7 >= 1 and row['Day'] % 7 <= 5 and row['Hour'] >= 7 and row['Hour'] <= 16:
             return
 
@@ -53,23 +56,29 @@ def LSH(data):
             ranks[mac] = 0
 
         mac_info[mac].add(info)
-
+        
+        # shift data by few hours to help jaccard distance
         for i in range(-2, 3, 1):
             info = (row['Day'], (row['Hour'] + i + 24) % 24, row['IP'])
-            mac_info[mac].add(info),
+            mac_info[mac].add(info)
 
     data.apply(read_data, axis=1)
 
     end = time.time()
     print 'Get mac info: ', end - start
+    
+    start = time.time()
 
     for key, value in mac_info.iteritems():
-        mac_info[key] = minhash(mac_info[key])
+        minhash_info[key] = minhash(mac_info[key])
 
+    end = time.time()
+    print 'Minhashing: ', end - start
+    
     start = time.time()
 
     # insert mac information in the lsh hashtables
-    for key, value in mac_info.iteritems():
+    for key, value in minhash_info.iteritems():
         cnt_b, cnt_r, vec = 0, 0, []
  
         for elem in value:
@@ -119,9 +128,11 @@ def LSH(data):
     
     # remove some families based on some criteria
     keyRemove = [key for key, value in families.iteritems() if len(value) <= 2]
-
+    
+    # remove families with few changes in their ips per day
     for key, value in families.iteritems():
-        days_ips = [set() for i in range(50)]
+        ALL_DAYS = 50
+        days_ips = [set() for i in range(ALL_DAYS)]
 
         for mac_num in value:
             for (day, hour, ip) in mac_info[mac_num]:
@@ -129,7 +140,7 @@ def LSH(data):
 
         sums, cnt = 0, 0
 
-        for i in range(50):
+        for i in range(ALL_DAYS):
             if len(days_ips[i]):
                 sums += len(days_ips[i])
                 cnt += 1
@@ -145,6 +156,9 @@ def LSH(data):
 
     return families
 
+
+'''
+This function was used for testing
 
 def slow_algorithm(data):
     mac_info, parents, ranks, families = dict(), dict(), dict(), dict()
@@ -166,15 +180,15 @@ def slow_algorithm(data):
 
         for i in range(-2, 3, 1):
             info = (row['Day'], (row['Hour'] + i + 24) % 24, row['IP'])
-            mac_info[mac].add(info),
+            mac_info[mac].add(info)
 
     data.apply(read_data, axis=1)
 
     end = time.time()
     print end - start
 
-    for key, value in mac_info.iteritems():
-        minhash(mac_info[key])
+    # for key, value in mac_info.iteritems():
+    #    mac_info[key] = minhash(mac_info[key])
 
     start = time.time()
 
@@ -230,3 +244,4 @@ def slow_algorithm(data):
             del families[elem]
 
     return families
+'''
