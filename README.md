@@ -1,1 +1,3 @@
 # Big-Data-Assignment
+
+# Λειτουργία

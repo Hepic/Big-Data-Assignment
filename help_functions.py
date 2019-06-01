@@ -3,6 +3,20 @@ from sklearn.metrics.cluster import adjusted_rand_score
 from sklearn import preprocessing
 
 
+def jaccard_similarity(set1, set2):
+    inter, union = len(set1.intersection(set2)), len(set1.union(set2))
+
+    if union == 0:
+        return 1.0
+
+    sim = float(inter) / float(union)
+    return sim
+
+
+def jaccard_distance(set1, set2):
+    return 1 - jaccard_similarity(set1, set2)
+
+
 def accuracy_evaluation(data, dataSol, predFamilies):
     macs = list(set(data.MAC))
     le = preprocessing.LabelEncoder()
@@ -24,11 +38,11 @@ def accuracy_evaluation(data, dataSol, predFamilies):
     famInd = 0
     
     # labels of predicted solution
-    for key, value in predFamilies.iteritems():
-        for mac_num in value:
+    for family_members in predFamilies:
+        for mac_num in family_members:
             pos = le.transform([mac_num])[0]
             predLabels[pos] = famInd
 
         famInd += 1
 
-    print adjusted_rand_score(trueLabels, predLabels)
+    return adjusted_rand_score(trueLabels, predLabels)
