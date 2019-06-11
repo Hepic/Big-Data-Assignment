@@ -1,4 +1,4 @@
-import math
+import math, time
 from sklearn.metrics.cluster import adjusted_rand_score
 from sklearn import preprocessing
 
@@ -17,7 +17,47 @@ def jaccard_distance(set1, set2):
     return 1 - jaccard_similarity(set1, set2)
 
 
-def accuracy_evaluation(data, dataSol, predFamilies):
+def read_macs(data, category, pred_families = [], pred_workers = []):
+    mac_info, visited = dict(), dict()
+    start = time.time()
+
+    if category == 'hotels':
+        # mark each mac that belongs either to a family or to a group of workers
+        for family in pred_families:
+            for member in family:
+                visited[member] = True
+
+        for workers in pred_workers:
+            for member in workers:
+                visited[member] = True
+    
+    # retrieve mac addresses information
+    for day, hour, ip, mac in zip(data['Day'], data['Hour'], data['IP'], data['MAC']):
+        info = (day, hour, ip)
+        
+        # avoid useless information 
+        if (category == 'families' and (day % 7 >= 1 and day % 7 <= 5 and hour >= 7 and hour <= 16)) or \
+        (category == 'workers' and (not (day % 7 >= 1 and day % 7 <= 5 and hour >= 7 and hour <= 16))) or \
+        (category == 'families' and (mac in visited)):
+            continue
+        
+        if mac not in mac_info:
+            mac_info[mac] = set()
+
+        mac_info[mac].add(info)
+        
+        # shift data by few hours to help jaccard distance
+        for i in range(-2, 3, 1):
+            info = (day, (hour + i + 24) % 24, ip)
+            mac_info[mac].add(info)
+
+    end = time.time()
+    print '(Time) Get mac info for', category, ': ', end - start, 'secs'
+    
+    return mac_info
+
+
+def accuracy_evaluation_families(data, data_sol, pred_families):
     macs = list(set(data.MAC))
     le = preprocessing.LabelEncoder()
     le.fit(macs)
@@ -26,7 +66,7 @@ def accuracy_evaluation(data, dataSol, predFamilies):
     famInd = 0
     
     # labels of real solution
-    for mac_str in dataSol:
+    for mac_str in data_sol:
         mac_list = map(int, mac_str.split(','))
 
         for mac_num in mac_list:
@@ -38,7 +78,7 @@ def accuracy_evaluation(data, dataSol, predFamilies):
     famInd = 0
     
     # labels of predicted solution
-    for family_members in predFamilies:
+    for family_members in pred_families:
         for mac_num in family_members:
             pos = le.transform([mac_num])[0]
             predLabels[pos] = famInd

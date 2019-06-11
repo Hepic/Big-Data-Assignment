@@ -1,4 +1,4 @@
-from distances import *
+from help_functions import *
 import time
 
 
@@ -22,6 +22,7 @@ def minhash(set_info):
     prime_numbers, MOD, K = [101, 6151, 12289, 49157, 393241, 786433, 1572869, 25165843, 100663319, 201326611], 1000000007, 50
     list_info = [] 
     
+    # Each hashfunction contributes 'K / number_of_hashfunctions' elements
     for pr_num in prime_numbers:
         list_info_hash = []
 
@@ -30,7 +31,8 @@ def minhash(set_info):
             hash_val = (hash_val + (((ip * pr_num) % MOD * pr_num) % MOD * pr_num) % MOD) % MOD
 
             list_info_hash.append((hash_val, (day, hour, ip)))
-
+        
+        # sort the list, so as the get the 'K / number_of_hashfunctions' elements for that hashfunction
         list_info_hash.sort()
 
         for i in range(min(K / len(prime_numbers), len(list_info_hash))):
@@ -40,36 +42,15 @@ def minhash(set_info):
     return list_info
 
 
-def LSH(data):
-    LSH_B, ALL_DAYS = 50, 50 
-    mac_info, minhash_info, parents, ranks, families,  = dict(), dict(), dict(), dict(), dict() 
+def LSH(mac_info):
+    LSH_B = 50 
+    minhash_info, parents, ranks, groups = dict(), dict(), dict(), dict() 
     hashtables_lsh = [dict() for i in range(LSH_B + 5)]
-
-    start = time.time()
     
-    # retrieve mac addresses information
-    for day, hour, ip, mac in zip(data['Day'], data['Hour'], data['IP'], data['MAC']):
-        info = (day, hour, ip)
-        
-        # do not include working hours
-        if day % 7 >= 1 and day % 7 <= 5 and hour >= 7 and hour <= 16:
-            continue 
+    for mac in mac_info:
+        parents[mac] = mac
+        ranks[mac] = 0
 
-        if mac not in mac_info:
-            mac_info[mac] = set()
-            parents[mac] = mac
-            ranks[mac] = 0
-
-        mac_info[mac].add(info)
-        
-        # shift data by few hours to help jaccard distance
-        for i in range(-2, 3, 1):
-            info = (day, (hour + i + 24) % 24, ip)
-            mac_info[mac].add(info)
-
-    end = time.time()
-    print 'Get mac info: ', end - start
-    
     start = time.time()
     
     # minhashing for every mac address
@@ -77,7 +58,7 @@ def LSH(data):
         minhash_info[key] = minhash(mac_info[key])
 
     end = time.time()
-    print 'Minhashing: ', end - start
+    print '(Time) Minhashing: ', end - start, 'secs'
     
     start = time.time()
 
@@ -94,7 +75,7 @@ def LSH(data):
             ind += 1
     
     end = time.time()
-    print 'Insert to hashtables: ', end - start
+    print '(Time) Insert to hashtables: ', end - start, 'secs'
     start = time.time()
 
     # retrieve candidate pairs from lsh hashtables
@@ -115,45 +96,52 @@ def LSH(data):
                             union_par(parents, ranks, par1, par2)
     
     end = time.time()
-    print 'Search in hashtables: ', end - start
+    print '(Time) Search in hashtables: ', end - start, 'secs'
     
-    # retrieve families from the union-find structure
+    # retrieve groups from the union-find structure
     for key, value in parents.iteritems():
         par = find_par(parents, key)
 
-        if par not in families:
-            families[par] = [key]
+        if par not in groups:
+            groups[par] = [key]
         else:
-            families[par].append(key) 
+            groups[par].append(key) 
     
-    # remove some families based on some criteria
-    keyRemove = [key for key, value in families.iteritems() if len(value) <= 2]
+    return groups
+
+
+def remove_groups(mac_info, groups, category):
+    ALL_DAYS = 50
     
-    # remove families with few changes in their ips per day
-    for key, family_members in families.iteritems():
-        days_ips = [set() for i in range(ALL_DAYS)]
-        
-        for mac_num in family_members:
-            for (day, hour, ip) in mac_info[mac_num]:
-                days_ips[day].add(ip)
+    if category != 'hotels':
+        # remove some groups based on some criteria
+        key_remove = [key for key, value in groups.iteritems() if len(value) <= 2]
 
-        sums, cnt = 0, 0
+        # remove groups with few changes in their ips per day
+        for key, members in groups.iteritems():
+            days_ips = [set() for i in range(ALL_DAYS)]
+            
+            for mac_num in members:
+                for (day, hour, ip) in mac_info[mac_num]:
+                    days_ips[day].add(ip)
 
-        for i in range(ALL_DAYS):
-            if len(days_ips[i]):
-                sums += len(days_ips[i])
-                cnt += 1
+            sums, cnt = 0, 0
 
-        avg = float(sums) / float(cnt)
+            for i in range(ALL_DAYS):
+                if len(days_ips[i]):
+                    sums += len(days_ips[i])
+                    cnt += 1
 
-        if avg <= 4.0:
-            keyRemove.append(key)
+            avg = float(sums) / float(cnt)
 
-    for elem in keyRemove:
-        if elem in families:
-            del families[elem]
+            if avg <= 4.0:
+                key_remove.append(key)
+
+        for elem in key_remove:
+            if elem in groups:
+                del groups[elem]
     
-    # convert families to sorted lists
-    families = [sorted(value) for key, value in families.iteritems()]
+    # convert groups to sorted lists
+    groups = [sorted(value) for key, value in groups.iteritems()]
     
-    return families
+    return groups
