@@ -88,14 +88,14 @@ def LSH(mac_info, category):
             for j in range(len(bucket)):
                 for k in range(j + 1, len(bucket)):
                     mac1, mac2 = bucket[j], bucket[k]
- 
-                    value1, value2 = mac_info[mac1], mac_info[mac2]
-                    dist = jaccard_distance(value1, value2)
-
-                    if dist <= thres:
-                        par1, par2 = find_par(parents, mac1), find_par(parents, mac2)
-
-                        if par1 != par2:
+                    par1, par2 = find_par(parents, mac1), find_par(parents, mac2)
+                    
+                    # calculate their real distance only if they do not belong to the same group 
+                    if par1 != par2:
+                        value1, value2 = mac_info[mac1], mac_info[mac2]
+                        dist = jaccard_distance(value1, value2)
+                        
+                        if dist <= thres:
                             union_par(parents, ranks, par1, par2)
     
     end = time.time()
