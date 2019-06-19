@@ -19,20 +19,21 @@ def union_par(parents, ranks, ind1, ind2):
 
 
 def minhash(set_info):
-    prime_numbers, MOD, K = [101, 6151, 12289, 49157, 393241, 786433, 1572869, 25165843, 100663319, 201326611], 1000000007, 50
+    prime_numbers, MOD, K = [1299187, 1572869, 25165843, 100663319, 201326611], 1000000007, 50
     list_info = [] 
     
     # Each hashfunction contributes 'K / number_of_hashfunctions' elements
     for pr_num in prime_numbers:
         list_info_hash = []
-
+        
         for (day, hour, ip) in set_info:
-            hash_val = ((day * pr_num) % MOD + ((hour * pr_num) % MOD * pr_num) % MOD) % MOD
+            hash_val = ((((day * pr_num) % MOD * pr_num) % MOD * pr_num) % MOD) % MOD
+            hash_val = (hash_val + (((hour * pr_num) % MOD * pr_num) % MOD * pr_num) % MOD) % MOD
             hash_val = (hash_val + (((ip * pr_num) % MOD * pr_num) % MOD * pr_num) % MOD) % MOD
 
             list_info_hash.append((hash_val, (day, hour, ip)))
         
-        # sort the list, so as the get the 'K / number_of_hashfunctions' elements for that hashfunction
+        # sort the list, so as the get the 'K / number_of_hashfunctions' elements for that hash function
         list_info_hash.sort()
 
         for i in range(min(K / len(prime_numbers), len(list_info_hash))):
@@ -42,7 +43,7 @@ def minhash(set_info):
     return list_info
 
 
-def LSH(mac_info):
+def LSH(mac_info, category):
     LSH_B = 50 
     minhash_info, parents, ranks, groups = dict(), dict(), dict(), dict() 
     hashtables_lsh = [dict() for i in range(LSH_B + 5)]
@@ -55,7 +56,7 @@ def LSH(mac_info):
     
     # minhashing for every mac address
     for key, value in mac_info.iteritems():
-        minhash_info[key] = minhash(mac_info[key])
+        minhash_info[key] = minhash(value)
 
     end = time.time()
     print '(Time) Minhashing: ', end - start, 'secs'
@@ -80,6 +81,8 @@ def LSH(mac_info):
 
     # retrieve candidate pairs from lsh hashtables
     # union find on these pairs with jaccard distance
+    thres = 0.7 if category == 'hotels' else 0.88
+
     for i in range(LSH_B):
         for ind, bucket in hashtables_lsh[i].iteritems():
             for j in range(len(bucket)):
@@ -89,7 +92,7 @@ def LSH(mac_info):
                     value1, value2 = mac_info[mac1], mac_info[mac2]
                     dist = jaccard_distance(value1, value2)
 
-                    if dist <= 0.88:
+                    if dist <= thres:
                         par1, par2 = find_par(parents, mac1), find_par(parents, mac2)
 
                         if par1 != par2:
@@ -111,35 +114,37 @@ def LSH(mac_info):
 
 
 def remove_groups(mac_info, groups, category):
-    ALL_DAYS = 50
+    ALL_DAYS, key_remove = 50, []
     
-    if category != 'hotels':
-        # remove some groups based on some criteria
+    # remove some groups based on some criteria
+    if category == 'hotels':
+        key_remove = [key for key, value in groups.iteritems() if len(value) <= 1]
+    else:
         key_remove = [key for key, value in groups.iteritems() if len(value) <= 2]
 
-        # remove groups with few changes in their ips per day
-        for key, members in groups.iteritems():
-            days_ips = [set() for i in range(ALL_DAYS)]
-            
-            for mac_num in members:
-                for (day, hour, ip) in mac_info[mac_num]:
-                    days_ips[day].add(ip)
+    # remove groups based on their changes in their ips per day
+    for key, members in groups.iteritems():
+        days_ips = [set() for i in range(ALL_DAYS)]
+        
+        for mac_num in members:
+            for (day, hour, ip) in mac_info[mac_num]:
+                days_ips[day].add(ip)
 
-            sums, cnt = 0, 0
+        sums, cnt = 0, 0
 
-            for i in range(ALL_DAYS):
-                if len(days_ips[i]):
-                    sums += len(days_ips[i])
-                    cnt += 1
+        for i in range(ALL_DAYS):
+            if len(days_ips[i]):
+                sums += len(days_ips[i])
+                cnt += 1
 
-            avg = float(sums) / float(cnt)
+        avg = float(sums) / float(cnt)
 
-            if avg <= 4.0:
-                key_remove.append(key)
+        if (category == 'hotels' and avg >= 5) or (category != 'hotels' and avg <= 4.0):
+            key_remove.append(key)
 
-        for elem in key_remove:
-            if elem in groups:
-                del groups[elem]
+    for elem in key_remove:
+        if elem in groups:
+            del groups[elem]
     
     # convert groups to sorted lists
     groups = [sorted(value) for key, value in groups.iteritems()]

@@ -38,7 +38,7 @@ def read_macs(data, category, pred_families = [], pred_workers = []):
         # avoid useless information 
         if (category == 'families' and (day % 7 >= 1 and day % 7 <= 5 and hour >= 7 and hour <= 16)) or \
         (category == 'workers' and (not (day % 7 >= 1 and day % 7 <= 5 and hour >= 7 and hour <= 16))) or \
-        (category == 'families' and (mac in visited)):
+        (category == 'hotels' and (mac in visited)):
             continue
         
         if mac not in mac_info:
@@ -57,13 +57,13 @@ def read_macs(data, category, pred_families = [], pred_workers = []):
     return mac_info
 
 
-def accuracy_evaluation_families(data, data_sol, pred_families):
+def accuracy_evaluation(data, data_sol, pred_families):
     macs = list(set(data.MAC))
     le = preprocessing.LabelEncoder()
     le.fit(macs)
 
     trueLabels, predLabels = [-1 for i in range(len(macs))], [-1 for i in range(len(macs))]
-    famInd = 0
+    ind = 0
     
     # labels of real solution
     for mac_str in data_sol:
@@ -71,18 +71,18 @@ def accuracy_evaluation_families(data, data_sol, pred_families):
 
         for mac_num in mac_list:
             pos = le.transform([mac_num])[0]
-            trueLabels[pos] = famInd
+            trueLabels[pos] = ind 
 
-        famInd += 1
+        ind += 1
 
-    famInd = 0
+    ind = 0
     
     # labels of predicted solution
     for family_members in pred_families:
         for mac_num in family_members:
             pos = le.transform([mac_num])[0]
-            predLabels[pos] = famInd
+            predLabels[pos] = ind
 
-        famInd += 1
+        ind += 1
 
     return adjusted_rand_score(trueLabels, predLabels)
